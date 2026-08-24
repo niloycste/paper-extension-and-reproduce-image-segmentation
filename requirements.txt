@@ -1,33 +1,59 @@
-numpy==1.22.4
-loguru
-tqdm
-pyyaml
-pandas
-matplotlib
-scikit-learn
-scikit-image
-scipy
-opencv-python
-seaborn
-albumentations==1.1.0
-tabulate
-warmup-scheduler
-transformers==4.21.3
-torchprofile
-torchmetrics
-einops
-ptflops
-torchsummary
-torchsummaryx
-segmentation-mask-overlay==0.3.4
-timm==0.6.12
-tifffile
+# MK-UNet — verified dependency set (CPU-only and CUDA)
+#
+# The upstream file is preserved as requirements-upstream.txt. It could not be
+# installed as-is, for three reasons found while reproducing this work:
+#   1. it lists no torch/torchvision at all, so it installs nothing that can run
+#      the model;
+#   2. it omits openpyxl, which pandas.to_excel() needs — evaluation crashed at
+#      the very end of a run, after the expensive part;
+#   3. numpy==1.22.4 downgrades a working install, and an unpinned SimpleITK has
+#      no Python 3.8 wheel so pip tries to build it from source and fails.
+# Roughly twenty of its entries are never imported anywhere in the codebase.
+#
+# Every package below was confirmed by scanning the actual imports across
+# mkunet_network.py, train_polyp.py, test_polyp.py, utils/ and path A/.
+# See step1/environment/SETUP_CPU.md for the full install walkthrough and
+# step1/environment/pip_freeze.txt for the exact resolved versions used.
+#
+#   pip install -r requirements.txt
+#
+# For a CPU-only machine, swap the index URL and the two torch lines for:
+#   --extra-index-url https://download.pytorch.org/whl/cpu
+#   torch==1.11.0+cpu
+#   torchvision==0.12.0+cpu
+# The cu113 build below also runs correctly without a GPU (it reports
+# cuda_available=False and falls back), but loads CUDA DLLs costing ~1-2 GB RAM.
+# It is kept as the default because it matches the paper's stated environment.
+
+--extra-index-url https://download.pytorch.org/whl/cu113
+
+# --- core: the paper's stated versions (PyTorch 1.11.0 requires Python 3.8) ---
+torch==1.11.0+cu113
+torchvision==0.12.0+cu113
+
+# --- model ---
+timm==0.6.12               # trunc_normal_tf_, named_apply in mkunet_network.py
+thop                       # FLOP counting in utils/utils.py
+
+# --- data pipeline ---
+numpy                      # deliberately unpinned; the upstream ==1.22.4 pin conflicts
+opencv-python              # cv2, used by the dataloader and test_polyp.py
+albumentations==1.1.0      # install with --no-deps if opencv-python is already present,
+                           # otherwise it pulls opencv-python-headless and you end up
+                           # with two cv2 modules in one environment
 pillow
-thop
-simpleitk
-nibabel
-h5py
-huggingface-hub==0.11.0
-ml_collections
-tensorboardx
-medpy
+
+# --- metrics and reporting ---
+pandas
+openpyxl                   # REQUIRED by pandas.to_excel(); missing upstream
+scikit-learn               # roc_auc_score in 07_reliability.py
+scipy
+matplotlib
+tqdm
+medpy                      # hd95 in test_polyp.py
+
+# --- imported at module level by utils/utils.py, so required even though the ---
+# --- polyp pipeline never calls them ---
+SimpleITK==2.2.1           # pinned: newer versions have no Python 3.8 wheel
+seaborn
+segmentation-mask-overlay==0.3.4

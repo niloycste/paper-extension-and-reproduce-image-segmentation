@@ -25,8 +25,8 @@ The ClinicDB result is numerically consistent with the paper. The ColonDB result
 
 The main Step 1 outputs are in:
 
-- `submission_texfile_pdf/MKUNet_All_Revised_v4/Step1_Deliverable1_Execution_Summary.pdf`
-- `submission_texfile_pdf/MKUNet_All_Revised_v4/Step1_Deliverable2_Technical_Report.pdf`
+- `Pdf files/Step1_Deliverable1_Execution_Summary.pdf`
+- `Pdf files/Step1_Deliverable2_Technical_Report.pdf`
 
 ### Step 2 / Path A: MK-UNet-CC extension
 
@@ -74,7 +74,7 @@ Key extension artifacts:
 - `path A/results/cost_table.json` — parameter and FLOP comparison
 - `path A/results/sparse_verification.json` — executed/skipped branch counts and latency
 - `path A/results/mkunet_cc_architecture.png` — extension architecture figure
-- `submission_texfile_pdf/MKUNet_All_Revised_v4/Step2_PathA_Research_Proposal.pdf` — final Path A proposal with the method framing, literature positioning, and limitations
+- `Pdf files/Step2_PathA_Research_Proposal.pdf` — final Path A proposal with the method framing, literature positioning, and limitations
 
 ### How to reproduce the Path A extension
 

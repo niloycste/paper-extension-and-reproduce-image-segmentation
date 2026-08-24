@@ -15,3 +15,13 @@ path A/runs/
 path A/queue.log
 *.pth
 *.xlsx
+
+# LaTeX build artifacts.
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
