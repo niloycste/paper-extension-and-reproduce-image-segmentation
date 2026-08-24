@@ -1,0 +1,17 @@
+run,dataset,routing,aux,kernels,epochs,seed,params,init_from,status,best_val,best_epoch,test_dice,train_h,eval_dice,eval_iou,select_frac,routing_entropy,eval_dice_cross,eval_iou_cross,ece,brier,error_auroc
+STEP1 baseline (original code),ClinicDB,fixed,False,,200,,27384,,,0.8679,,0.9109,,,,,,,,,,
+STEP1 baseline (original code),ColonDB,fixed,False,,200,,27384,,,0.7686,,0.7832,,,,,,,,,,
+ClinicDB_MK_UNet_T_adaptive_soft_k135_auxFalse_e200_seed42_t20260821-001221,ClinicDB,adaptive_soft,False,135,200,42,30588,,,0.8755,126,0.9153,16.4,0.9153,0.8528,"[0.077, 0.215, 0.708]",0.9551,,,0.0057,0.0084,0.9809
+ClinicDB_MK_UNet_T_adaptive_soft_k135_auxTrue_e100_seed42_t20260822-195254,ClinicDB,adaptive_soft,True,135,100,42,30588,,,0.8745,98,0.8997,9.95,0.8997,0.832,"[0.426, 0.018, 0.556]",0.9734,,,0.0057,0.01,0.9802
+ClinicDB_MK_UNet_T_fixed_k135_auxFalse_e100_seed42_t20260821-211206,ClinicDB,fixed,False,135,100,42,27384,,INCOMPLETE,,,,,,,,,,,,,
+ClinicDB_MK_UNet_T_fixed_k135_auxFalse_e100_seed42_t20260821-213953,ClinicDB,fixed,False,135,100,42,27384,,INCOMPLETE,,,,,,,,,,,,,
+ClinicDB_MK_UNet_T_fixed_k135_auxFalse_e100_seed42_t20260821-230416,ClinicDB,fixed,False,135,100,42,27384,,,0.8397,83,0.8765,7.47,0.8765,0.8018,,,,,0.0067,0.0136,0.9706
+ClinicDB_MK_UNet_T_fixed_k135_auxTrue_e100_seed42_t20260821-204535,ClinicDB,fixed,True,135,100,42,27384,,INCOMPLETE,,,,,,,,,,,,,
+ClinicDB_MK_UNet_T_fixed_k135_auxTrue_e100_seed42_t20260823-234025,ClinicDB,fixed,True,135,100,42,27384,,,0.8295,83,0.8889,9.16,0.8889,0.8173,,,,,0.0077,0.013,0.9736
+ClinicDB_MK_UNet_T_fixed_k13_auxFalse_e100_seed42_t20260822-065129,ClinicDB,fixed,False,13,100,42,19878,,,0.8354,90,0.8706,5.95,0.8706,0.7956,,,,,0.0061,0.0132,0.9673
+ClinicDB_MK_UNet_T_fixed_k15_auxFalse_e100_seed42_t20260822-130646,ClinicDB,fixed,False,15,100,42,24326,,,0.8432,93,0.8823,6.47,0.8823,0.811,,,,,0.0067,0.0131,0.9766
+ClinicDB_MK_UNet_T_fixed_k35_auxFalse_e100_seed42_t20260823-163819,ClinicDB,fixed,False,35,100,42,26550,,,0.8441,85,0.9018,6.72,0.9018,0.8364,,,,,0.0064,0.0096,0.9791
+ClinicDB_MK_UNet_T_sparse_top1_k135_auxFalse_e30_seed42_t20260821-181416,ClinicDB,sparse_top1,False,135,30,42,30588,ClinicDB_MK_UNet_T_adaptive_soft_k135_auxFalse_e200_seed42_t20260821-001221,,0.8136,26,0.8372,2.41,0.8372,0.7475,"[0.055, 0.356, 0.589]",-0.0,,,0.011,0.0179,0.9554
+ClinicDB_MK_UNet_T_sparse_top1_k135_auxFalse_e60_seed42_t20260824-091007,ClinicDB,sparse_top1,False,135,60,42,30588,ClinicDB_MK_UNet_T_adaptive_soft_k135_auxFalse_e200_seed42_t20260821-001221,,0.8432,52,0.9001,5.03,0.9001,0.8326,"[0.006, 0.326, 0.668]",-0.0,,,0.007,0.0106,0.9744
+ClinicDB_MK_UNet_T_uncertainty_soft_k135_auxTrue_e100_seed42_t20260823-061141,ClinicDB,uncertainty_soft,True,135,100,42,30618,,,0.8492,83,0.8899,10.08,0.8899,0.8203,"[0.519, 0.169, 0.311]",0.9542,,,0.0067,0.0116,0.9721
+ClinicDB_MK_UNet_T_uncertainty_soft_k135_auxTrue_e1_seed999_t20260821-000456,ClinicDB,uncertainty_soft,True,135,1,999,30618,,,0.3127,1,0.2613,0.11,0.2613,0.1648,"[0.8, 0.0, 0.2]",0.9989,0.1422,0.0871,,,

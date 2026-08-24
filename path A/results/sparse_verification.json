@@ -1,0 +1,40 @@
+{
+  "generated": "2026-08-24 14:55:15",
+  "host": {
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "torch": "1.11.0+cu113",
+    "cuda": false,
+    "torch_threads": 16
+  },
+  "network": "MK_UNet_T",
+  "conditional_execution": {
+    "routers": 10,
+    "branch_convs": 30,
+    "executed_at_batch1": 10,
+    "skipped_at_batch1": 20,
+    "executed_fraction": 0.3333,
+    "all_branches_run_in_train_mode": true
+  },
+  "latency_batch1_ms": {
+    "fixed": 53.59,
+    "adaptive_soft": 57.52,
+    "sparse_top1": 46.44,
+    "sparse_top2": 59.75
+  },
+  "params": {
+    "fixed": 27384,
+    "adaptive_soft": 30588,
+    "sparse_top1": 30588,
+    "sparse_top2": 30588
+  },
+  "latency_vs_fixed_pct": {
+    "fixed": 0.0,
+    "adaptive_soft": 7.34,
+    "sparse_top1": -13.33,
+    "sparse_top2": 11.5
+  },
+  "checks_passed": 5,
+  "checks_failed": 0,
+  "note": "Latency is the basis of any efficiency claim; executed-branch count is necessary but not sufficient, since dynamic control flow has its own cost."
+}

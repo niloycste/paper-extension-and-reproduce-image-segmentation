@@ -1,0 +1,21 @@
+
+cpu              : Intel(R) Core(TM) i9-14900, 24 cores / 32 logical
+ram              : 31.7 GB
+gpu              : none (CPU-only)
+python           : 3.8.20 (default, Oct  3 2024, 15:19:54) [MSC v.1929 64 bit (AMD64)]
+torch            : 1.11.0+cu113
+cuda_available   : False
+torch_threads    : 24
+
+
+=== Measured performance (MK_UNet_T, ClinicDB, 352x352, batch 8) ===
+epoch_time       : ~4.5 min
+200_epochs       : ~15 h
+peak_rss         : ~7 GB
+
+=== Verified parameter counts vs paper Table 1 ===
+MK_UNet_T        : 0.0274 M   (paper 0.027)
+MK_UNet_S        : 0.0930 M   (paper 0.093)
+MK_UNet          : 0.3156 M   (paper 0.316)
+MK_UNet_M        : 1.1502 M   (paper 1.150)
+MK_UNet_L        : 3.7581 M   (paper 3.760)

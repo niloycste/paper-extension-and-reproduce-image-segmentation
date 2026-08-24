@@ -892,8 +892,11 @@ def tta_model_sam_1st(predictor_tuned, image, mask, perturb_h_len=30):
 
     return mean_mask
 
-def cal_params_flops(model, size, logger):
-    input = torch.randn(1, 3, size, size).cuda()
+def cal_params_flops(model, size, logger, device=None):
+    # Profile on whatever device the model already lives on, so this works on CPU-only machines.
+    if device is None:
+        device = next(model.parameters()).device
+    input = torch.randn(1, 3, size, size).to(device)
     flops, params = profile(model, inputs=(input,))
     print('flops',flops/1e9)			## 打印计算量
     print('params',params/1e6)			## 打印参数量

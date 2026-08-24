@@ -1,0 +1,47 @@
+Network: MK_UNet_T | Channels: [4, 8, 16, 24, 32] | Device: cpu | Seed: 42
+[INFO] Register count_convNd() for <class 'torch.nn.modules.conv.Conv2d'>.
+[INFO] Register count_normalization() for <class 'torch.nn.modules.batchnorm.BatchNorm2d'>.
+[INFO] Register zero_ops() for <class 'torch.nn.modules.activation.ReLU6'>.
+[INFO] Register zero_ops() for <class 'torch.nn.modules.container.Sequential'>.
+[INFO] Register zero_ops() for <class 'torch.nn.modules.activation.ReLU'>.
+[INFO] Register count_adap_avgpool() for <class 'torch.nn.modules.pooling.AdaptiveAvgPool2d'>.
+[INFO] Register zero_ops() for <class 'torch.nn.modules.pooling.AdaptiveMaxPool2d'>.
+flops 0.126256062
+params 0.027384
+Total params: 0.03M
+2026-08-19 16:27:46.362528 Epoch [001/200], Step [0062/0062], LR: 0.000500, Loss: 1.5172
+Epoch: 1, Dataset: test, Dice: 0.1865, IoU: 0.1091
+Epoch: 1, Dataset: val, Dice: 0.2476, IoU: 0.1539
+### Best Model Saved (Dice improved from 0.0000 to 0.2476) ###
+2026-08-19 16:32:48.600624 Epoch [002/200], Step [0062/0062], LR: 0.000500, Loss: 1.2184
+Epoch: 2, Dataset: test, Dice: 0.2845, IoU: 0.1815
+Epoch: 2, Dataset: val, Dice: 0.3388, IoU: 0.2287
+### Best Model Saved (Dice improved from 0.2476 to 0.3388) ###
+2026-08-19 16:38:12.728830 Epoch [003/200], Step [0062/0062], LR: 0.000500, Loss: 1.0991
+Epoch: 3, Dataset: test, Dice: 0.3952, IoU: 0.2897
+Epoch: 3, Dataset: val, Dice: 0.4616, IoU: 0.3465
+### Best Model Saved (Dice improved from 0.3388 to 0.4616) ###
+Traceback (most recent call last):
+  File "train_polyp.py", line 295, in <module>
+    f'batchsize={opt.batchsize} lr={opt.lr} epochs={opt.epoch} '
+  File "train_polyp.py", line 162, in train
+    out = model(images)
+  File "C:\Users\USER\.conda\envs\mkunetenv\lib\site-packages\torch\nn\modules\module.py", line 1110, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "C:\MK-UNET paper\MK-UNet\mkunet_network.py", line 525, in forward
+    def forward(self, x):
+  File "C:\Users\USER\.conda\envs\mkunetenv\lib\site-packages\torch\nn\modules\module.py", line 1110, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "C:\Users\USER\.conda\envs\mkunetenv\lib\site-packages\torch\nn\modules\container.py", line 141, in forward
+    input = module(input)
+  File "C:\Users\USER\.conda\envs\mkunetenv\lib\site-packages\torch\nn\modules\module.py", line 1110, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "C:\MK-UNET paper\MK-UNet\mkunet_network.py", line 265, in forward
+
+  File "C:\Users\USER\.conda\envs\mkunetenv\lib\site-packages\torch\nn\modules\module.py", line 1110, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "C:\Users\USER\.conda\envs\mkunetenv\lib\site-packages\torch\nn\modules\conv.py", line 447, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+  File "C:\Users\USER\.conda\envs\mkunetenv\lib\site-packages\torch\nn\modules\conv.py", line 443, in _conv_forward
+    return F.conv2d(input, weight, bias, self.stride,
+RuntimeError: [enforce fail at C:\actions-runner\_work\pytorch\pytorch\builder\windows\pytorch\c10\core\impl\alloc_cpu.cpp:81] data. DefaultCPUAllocator: not enough memory: you tried to allocate 51380224 bytes.

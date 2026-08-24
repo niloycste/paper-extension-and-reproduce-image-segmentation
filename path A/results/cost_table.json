@@ -1,0 +1,76 @@
+{
+  "network": "MK_UNet_T",
+  "flop_resolution": 256,
+  "arms": [
+    {
+      "mode": "fixed",
+      "label": "MK-UNet-T baseline (fixed sum)",
+      "params": 27384,
+      "flops_g_at256": 0.066780324,
+      "params_vs_base_pct": null,
+      "flops_vs_base_pct": null
+    },
+    {
+      "mode": "adaptive_soft",
+      "label": "Stage A  adaptive soft",
+      "params": 30588,
+      "flops_g_at256": 0.067664343,
+      "params_vs_base_pct": 11.7,
+      "flops_vs_base_pct": 1.32
+    },
+    {
+      "mode": "uncertainty_soft",
+      "label": "Stage B  uncertainty-guided",
+      "params": 30618,
+      "flops_g_at256": 0.067664373,
+      "params_vs_base_pct": 11.81,
+      "flops_vs_base_pct": 1.32
+    },
+    {
+      "mode": "sparse_top1",
+      "label": "Stage C  sparse top-1",
+      "params": 30588,
+      "flops_g_at256": 0.030677463,
+      "params_vs_base_pct": 11.7,
+      "flops_vs_base_pct": -54.06
+    }
+  ],
+  "published_reference": [
+    {
+      "name": "MK-UNet-T (paper)",
+      "params_m": 0.027,
+      "flops_g": 0.062
+    },
+    {
+      "name": "MK-UNet-S (paper)",
+      "params_m": 0.093,
+      "flops_g": 0.125
+    },
+    {
+      "name": "MK-UNet (paper)",
+      "params_m": 0.316,
+      "flops_g": 0.314
+    },
+    {
+      "name": "UltraLight VM-UNet",
+      "params_m": 0.05,
+      "flops_g": 0.06
+    },
+    {
+      "name": "EGE-UNet",
+      "params_m": 0.054,
+      "flops_g": 0.072
+    },
+    {
+      "name": "UNeXt",
+      "params_m": 1.47,
+      "flops_g": 0.57
+    },
+    {
+      "name": "TransUNet",
+      "params_m": 105.32,
+      "flops_g": 38.52
+    }
+  ],
+  "note": "thop does not count the elementwise branch weighting, which is memory-bandwidth bound; see results/sparse_verification.json for measured latency."
+}

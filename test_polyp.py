@@ -11,6 +11,7 @@ from tqdm import tqdm
 # Project-specific imports
 from mkunet_network import MK_UNet
 from utils.dataloader_polyp import get_loader
+from train_polyp import str2bool, resolve_device
 from medpy.metric.binary import hd95
 
 def dice_coefficient(predicted, labels):
@@ -56,8 +57,10 @@ def get_binary_metrics(pred, gt):
         
     return sensitivity, specificity, precision, hd_val
 
-def test(model, path, dataset, opt, save_base=None):
+def test(model, path, dataset, opt, save_base=None, device=None):
     """Evaluates the model and saves prediction masks."""
+    if device is None:
+        device = next(model.parameters()).device
     data_path = os.path.join(path, dataset)
     image_root = f'{data_path}/images/'
     gt_root = f'{data_path}/masks/'
@@ -74,9 +77,9 @@ def test(model, path, dataset, opt, save_base=None):
 
     with torch.no_grad():
         for pack in tqdm(test_loader, desc=f"Inference on {dataset}"):
-            images, gts, original_shapes, names = pack       
-            images = images.cuda()
-            gts = gts.cuda().float()
+            images, gts, original_shapes, names = pack
+            images = images.to(device)
+            gts = gts.to(device).float()
 
             ress = model(images)
             predictions = ress[0] if isinstance(ress, list) else ress
@@ -134,9 +137,14 @@ if __name__ == '__main__':
     parser.add_argument('--split', type=str, default='test')
     parser.add_argument('--img_size', type=int, default=352)
     parser.add_argument('--test_batchsize', type=int, default=1)
-    parser.add_argument('--color_image', default=True)
+    parser.add_argument('--color_image', type=str2bool, default=True)
     parser.add_argument('--test_path', type=str, default='./data/polyp/target/')
+    parser.add_argument('--device', type=str, default='auto', choices=['auto', 'cpu', 'cuda'])
+    parser.add_argument('--ca_min_squeeze', type=int, default=1,
+                        help='must match the value used at training time for the checkpoint to load')
     opt = parser.parse_args()
+
+    device = resolve_device(opt.device)
 
     # --- Paths ---
     save_base = f'./predictions_polyp/{opt.run_id}/{opt.dataset_name}/{opt.split}'
@@ -155,12 +163,14 @@ if __name__ == '__main__':
     }
     
     channels = NET_CONFIGS.get(opt.network, NET_CONFIGS['MK_UNet'])
-    model = MK_UNet(num_classes=1, in_channels=3, channels=channels).cuda()
-    model.load_state_dict(torch.load(model_path), strict=False)
+    model = MK_UNet(num_classes=1, in_channels=3, channels=channels,
+                    ca_min_squeeze=opt.ca_min_squeeze).to(device)
+    # map_location lets a GPU-trained checkpoint load on a CPU-only machine.
+    model.load_state_dict(torch.load(model_path, map_location=device), strict=False)
     model.eval()
 
     # --- Run Inference ---
-    mean_dice, mean_iou, results = test(model, opt.test_path, opt.split, opt, save_base=save_base)
+    mean_dice, mean_iou, results = test(model, opt.test_path, opt.split, opt, save_base=save_base, device=device)
 
     # --- Save to Excel ---
     df = pd.DataFrame(results)
@@ -169,6 +179,7 @@ if __name__ == '__main__':
     mean_row['Name'] = 'AVERAGE'
     df = pd.concat([df, pd.DataFrame([mean_row])], ignore_index=True)
     
+    os.makedirs('results_polyp', exist_ok=True)
     excel_name = f'results_polyp/Results_{opt.run_id}_{opt.dataset_name}_{opt.split}.xlsx'
     df.to_excel(excel_name, index=False)
 

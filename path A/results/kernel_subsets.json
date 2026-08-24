@@ -1,0 +1,104 @@
+{
+  "network": "MK_UNet_T",
+  "full_kernels": [
+    1,
+    3,
+    5
+  ],
+  "base_params": 27384,
+  "subsets": [
+    {
+      "kernels": [
+        1
+      ],
+      "params": 16820,
+      "saved": 10564,
+      "saved_pct": 38.58,
+      "signal_share_kept": 0.26001400988203005,
+      "drop_cost": null
+    },
+    {
+      "kernels": [
+        3
+      ],
+      "params": 19044,
+      "saved": 8340,
+      "saved_pct": 30.46,
+      "signal_share_kept": 0.32036918927508784,
+      "drop_cost": null
+    },
+    {
+      "kernels": [
+        5
+      ],
+      "params": 23492,
+      "saved": 3892,
+      "saved_pct": 14.21,
+      "signal_share_kept": 0.41961680084287983,
+      "drop_cost": null
+    },
+    {
+      "kernels": [
+        1,
+        3
+      ],
+      "params": 19878,
+      "saved": 7506,
+      "saved_pct": 27.41,
+      "signal_share_kept": 0.5803831991571179,
+      "drop_cost": 0.5401106170020636
+    },
+    {
+      "kernels": [
+        1,
+        5
+      ],
+      "params": 24326,
+      "saved": 3058,
+      "saved_pct": 11.17,
+      "signal_share_kept": 0.6796308107249098,
+      "drop_cost": 0.4134364278441051
+    },
+    {
+      "kernels": [
+        3,
+        5
+      ],
+      "params": 26550,
+      "saved": 834,
+      "saved_pct": 3.05,
+      "signal_share_kept": 0.7399859901179677,
+      "drop_cost": 0.3323955304024761
+    },
+    {
+      "kernels": [
+        1,
+        3,
+        5
+      ],
+      "params": 27384,
+      "saved": 0,
+      "saved_pct": 0.0,
+      "signal_share_kept": 0.9999999999999978,
+      "drop_cost": null
+    }
+  ],
+  "per_branch": {
+    "1": {
+      "param_units": 3,
+      "signal_share": 0.26001400988203005,
+      "share_per_unit": 0.08667133662734335
+    },
+    "3": {
+      "param_units": 11,
+      "signal_share": 0.32036918927508784,
+      "share_per_unit": 0.029124471752280712
+    },
+    "5": {
+      "param_units": 27,
+      "signal_share": 0.41961680084287983,
+      "share_per_unit": 0.015541362994180734
+    }
+  },
+  "note": "signal_share_kept and drop_cost come from branch_analysis.json, measured on the trained Stage-A model; they are norms, not DICE. A large norm change may still fine-tune back."
+}

@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.vscode/
+.cleanup_backups/
+
+# Data and experiment outputs -- regenerate or copy separately, do not commit.
+data/
+dataset/
+logs/
+model_pth/
+predictions_polyp/
+results_polyp/
+experiments/results/*.log
+path A/runs/
+path A/queue.log
+*.pth
+*.xlsx

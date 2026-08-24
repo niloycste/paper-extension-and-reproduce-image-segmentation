@@ -70,24 +70,27 @@ def act_layer(act, inplace=False, neg_slope=0.2, n_prelu=1):
 def channel_shuffle(x, groups):
     batchsize, num_channels, height, width = x.data.size()
     channels_per_group = num_channels // groups
-    
+
     # reshape
-    x = x.view(batchsize, groups, 
+    x = x.view(batchsize, groups,
                channels_per_group, height, width)
     x = torch.transpose(x, 1, 2).contiguous()
     # flatten
     x = x.view(batchsize, -1, height, width)
-    
+
     return x
 
 class ChannelAttention(nn.Module):
-    def __init__(self, in_planes, out_planes=None, ratio=16, activation='relu'):
+    def __init__(self, in_planes, out_planes=None, ratio=16, activation='relu', min_squeeze=1):
         super(ChannelAttention, self).__init__()
         self.in_planes = in_planes
         self.out_planes = out_planes
         if self.in_planes < ratio:
             ratio = self.in_planes
-        self.reduced_channels = self.in_planes // ratio
+        # min_squeeze=1 reproduces the released behaviour exactly. Raising it prevents the
+        # squeeze-excite bottleneck from collapsing to a single channel on narrow stages,
+        # which is what happens throughout MK_UNet_T (channels [4,8,16,24,32] with ratio 16).
+        self.reduced_channels = min(max(self.in_planes // ratio, min_squeeze), self.in_planes)
         if self.out_planes == None:
             self.out_planes = in_planes
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
@@ -96,24 +99,24 @@ class ChannelAttention(nn.Module):
         self.activation = act_layer(activation, inplace=True)
 
         self.fc1 = nn.Conv2d(in_planes, self.reduced_channels, 1, bias=False)
-                        
+
         self.fc2 = nn.Conv2d(self.reduced_channels, self.out_planes, 1, bias=False)
-        
+
         self.sigmoid = nn.Sigmoid()
 
         self.init_weights('normal')
-    
+
     def init_weights(self, scheme=''):
         named_apply(partial(_init_weights, scheme=scheme), self)
 
     def forward(self, x):
-        avg_pool_out = self.avg_pool(x) 
+        avg_pool_out = self.avg_pool(x)
         avg_out = self.fc2(self.activation(self.fc1(avg_pool_out)))
         max_pool_out= self.max_pool(x)
 
         max_out = self.fc2(self.activation(self.fc1(max_pool_out)))
         out = avg_out + max_out
-        return self.sigmoid(out) 
+        return self.sigmoid(out)
 
 class SpatialAttention(nn.Module):
     def __init__(self, kernel_size=7):
@@ -123,11 +126,11 @@ class SpatialAttention(nn.Module):
         padding = kernel_size//2
 
         self.conv = nn.Conv2d(2, 1, kernel_size, padding=padding, bias=False)
-           
+
         self.sigmoid = nn.Sigmoid()
 
         self.init_weights('normal')
-    
+
     def init_weights(self, scheme=''):
         named_apply(partial(_init_weights, scheme=scheme), self)
 
@@ -147,7 +150,7 @@ class GroupedAttentionGate(nn.Module):
             nn.Conv2d(F_g, F_int, kernel_size=kernel_size,stride=1,padding=kernel_size//2,groups=groups, bias=True),
             nn.BatchNorm2d(F_int)
         )
-        
+
         self.W_x = nn.Sequential(
             nn.Conv2d(F_l, F_int, kernel_size=kernel_size,stride=1,padding=kernel_size//2,groups=groups, bias=True),
             nn.BatchNorm2d(F_int)
@@ -162,10 +165,10 @@ class GroupedAttentionGate(nn.Module):
         self.activation = act_layer(activation, inplace=True)
 
         self.init_weights('normal')
-    
+
     def init_weights(self, scheme=''):
         named_apply(partial(_init_weights, scheme=scheme), self)
-        
+
     def forward(self,g,x):
         g1 = self.W_g(g)
         x1 = self.W_x(x)
@@ -188,7 +191,7 @@ class MultiKernelDepthwiseConv(nn.Module):
             for kernel_size in kernel_sizes
         ])
         self.init_weights('normal')
-    
+
     def init_weights(self, scheme=''):
         named_apply(partial(_init_weights, scheme=scheme), self)
 
@@ -225,10 +228,10 @@ class MultiKernelInvertedResidualBlock(nn.Module):
         self.ex_c = int(self.in_c * expansion_factor)
         self.pconv1 = nn.Sequential(
             # pointwise convolution
-            nn.Conv2d(self.in_c, self.ex_c, 1, 1, 0, bias=False), 
+            nn.Conv2d(self.in_c, self.ex_c, 1, 1, 0, bias=False),
             nn.BatchNorm2d(self.ex_c),
             act_layer(activation, inplace=True)
-        )        
+        )
         self.multi_scale_dwconv = MultiKernelDepthwiseConv(self.ex_c, self.kernel_sizes, self.stride, activation, dw_parallel=dw_parallel)
 
         if self.add == True:
@@ -237,14 +240,14 @@ class MultiKernelInvertedResidualBlock(nn.Module):
             self.combined_channels = self.ex_c*self.n_scales
         self.pconv2 = nn.Sequential(
             # pointwise convolution
-            nn.Conv2d(self.combined_channels, self.out_c, 1, 1, 0, bias=False), # 
+            nn.Conv2d(self.combined_channels, self.out_c, 1, 1, 0, bias=False), #
             nn.BatchNorm2d(self.out_c),
         )
         if self.use_skip_connection and (self.in_c != self.out_c):
-            self.conv1x1 = nn.Conv2d(self.in_c, self.out_c, 1, 1, 0, bias=False) 
-        
+            self.conv1x1 = nn.Conv2d(self.in_c, self.out_c, 1, 1, 0, bias=False)
+
         self.init_weights('normal')
-    
+
     def init_weights(self, scheme=''):
         named_apply(partial(_init_weights, scheme=scheme), self)
 
@@ -291,9 +294,9 @@ class MK_UNet_T(nn.Module):
 
     def __init__(self,  num_classes=1, in_channels=3, channels=[4,8,16,24,32], depths=[1, 1, 1, 1, 1], kernel_sizes=[1,3,5], expansion_factor=2, gag_kernel=3, **kwargs):
         super().__init__()
-        
+
         self.encoder1 = mk_irb_bottleneck(in_channels, channels[0], depths[0], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
-        self.encoder2 = mk_irb_bottleneck(channels[0], channels[1], depths[1], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)  
+        self.encoder2 = mk_irb_bottleneck(channels[0], channels[1], depths[1], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.encoder3 = mk_irb_bottleneck(channels[1], channels[2], depths[2], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.encoder4 = mk_irb_bottleneck(channels[2], channels[3], depths[3], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.encoder5 = mk_irb_bottleneck(channels[3], channels[4], depths[4], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
@@ -303,18 +306,18 @@ class MK_UNet_T(nn.Module):
         self.AG3 = GroupedAttentionGate(F_g=channels[1],F_l=channels[1],F_int=channels[1]//2, kernel_size=gag_kernel, groups=channels[1]//2)
         self.AG4 = GroupedAttentionGate(F_g=channels[0],F_l=channels[0],F_int=channels[0]//2, kernel_size=gag_kernel, groups=channels[0]//2)
 
-        self.decoder1 = mk_irb_bottleneck(channels[4], channels[3], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)  
+        self.decoder1 = mk_irb_bottleneck(channels[4], channels[3], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.decoder2 = mk_irb_bottleneck(channels[3], channels[2], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
-        self.decoder3 = mk_irb_bottleneck(channels[2], channels[1], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes) 
+        self.decoder3 = mk_irb_bottleneck(channels[2], channels[1], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.decoder4 = mk_irb_bottleneck(channels[1], channels[0], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.decoder5 = mk_irb_bottleneck(channels[0], channels[0], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
-        
+
         self.CA1 = ChannelAttention(channels[4], ratio=16)
         self.CA2 = ChannelAttention(channels[3], ratio=16)
         self.CA3 = ChannelAttention(channels[2], ratio=16)
         self.CA4 = ChannelAttention(channels[1], ratio=8)
         self.CA5 = ChannelAttention(channels[0], ratio=4)
-        
+
         self.SA = SpatialAttention()
 
         self.out1 = nn.Conv2d(channels[2], num_classes, kernel_size=1)
@@ -326,7 +329,7 @@ class MK_UNet_T(nn.Module):
 
         if x.shape[1]==1:
             x = x.repeat(1, 3, 1, 1)
-        
+
         B = x.shape[0]
         ### Encoder
         ### Stage 1
@@ -349,36 +352,36 @@ class MK_UNet_T(nn.Module):
         ### Stage 4
         out = self.CA1(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder1(out),scale_factor=(2,2),mode ='bilinear')) 
+        out = F.relu(F.interpolate(self.decoder1(out),scale_factor=(2,2),mode ='bilinear'))
         t4 = self.AG1(g=out,x=t4)
         out = torch.add(out,t4)
 
         ### Stage 3
         out = self.CA2(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder2(out),scale_factor=(2,2),mode ='bilinear')) 
+        out = F.relu(F.interpolate(self.decoder2(out),scale_factor=(2,2),mode ='bilinear'))
         p1 = F.interpolate(self.out1(out),scale_factor=(8,8),mode ='bilinear')
         t3 = self.AG2(g=out,x=t3)
         out = torch.add(out,t3)
 
         out = self.CA3(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder3(out),scale_factor=(2,2),mode ='bilinear')) 
+        out = F.relu(F.interpolate(self.decoder3(out),scale_factor=(2,2),mode ='bilinear'))
         p2 = F.interpolate(self.out2(out),scale_factor=(4,4),mode ='bilinear')
         t2 = self.AG3(g=out,x=t2)
         out = torch.add(out,t2)
 
         out = self.CA4(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder4(out),scale_factor=(2,2),mode ='bilinear')) 
+        out = F.relu(F.interpolate(self.decoder4(out),scale_factor=(2,2),mode ='bilinear'))
         p3 = F.interpolate(self.out3(out),scale_factor=(2,2),mode ='bilinear')
         t1 = self.AG4(g=out,x=t1)
         out = torch.add(out,t1)
 
         out = self.CA5(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder5(out),scale_factor=(2,2),mode ='bilinear')) 
-       
+        out = F.relu(F.interpolate(self.decoder5(out),scale_factor=(2,2),mode ='bilinear'))
+
         p4 = self.out4(out)
 
         return [p4] #[p4, p3, p2, p1]
@@ -387,9 +390,9 @@ class MK_UNet_S(nn.Module):
 
     def __init__(self,  num_classes=1, in_channels=3, channels=[8,16,32,48,80], depths=[1, 1, 1, 1, 1], kernel_sizes=[1,3,5], expansion_factor=2, gag_kernel=3, **kwargs):
         super().__init__()
-        
+
         self.encoder1 = mk_irb_bottleneck(in_channels, channels[0], depths[0], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
-        self.encoder2 = mk_irb_bottleneck(channels[0], channels[1], depths[1], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)  
+        self.encoder2 = mk_irb_bottleneck(channels[0], channels[1], depths[1], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.encoder3 = mk_irb_bottleneck(channels[1], channels[2], depths[2], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.encoder4 = mk_irb_bottleneck(channels[2], channels[3], depths[3], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.encoder5 = mk_irb_bottleneck(channels[3], channels[4], depths[4], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
@@ -399,18 +402,18 @@ class MK_UNet_S(nn.Module):
         self.AG3 = GroupedAttentionGate(F_g=channels[1],F_l=channels[1],F_int=channels[1]//2, kernel_size=gag_kernel, groups=channels[1]//2)
         self.AG4 = GroupedAttentionGate(F_g=channels[0],F_l=channels[0],F_int=channels[0]//2, kernel_size=gag_kernel, groups=channels[0]//2)
 
-        self.decoder1 = mk_irb_bottleneck(channels[4], channels[3], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)  
+        self.decoder1 = mk_irb_bottleneck(channels[4], channels[3], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.decoder2 = mk_irb_bottleneck(channels[3], channels[2], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
-        self.decoder3 = mk_irb_bottleneck(channels[2], channels[1], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes) 
+        self.decoder3 = mk_irb_bottleneck(channels[2], channels[1], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.decoder4 = mk_irb_bottleneck(channels[1], channels[0], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.decoder5 = mk_irb_bottleneck(channels[0], channels[0], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
-        
+
         self.CA1 = ChannelAttention(channels[4], ratio=16)
         self.CA2 = ChannelAttention(channels[3], ratio=16)
         self.CA3 = ChannelAttention(channels[2], ratio=16)
         self.CA4 = ChannelAttention(channels[1], ratio=8)
         self.CA5 = ChannelAttention(channels[0], ratio=4)
-        
+
         self.SA = SpatialAttention()
 
         self.out1 = nn.Conv2d(channels[2], num_classes, kernel_size=1)
@@ -422,7 +425,7 @@ class MK_UNet_S(nn.Module):
 
         if x.shape[1]==1:
             x = x.repeat(1, 3, 1, 1)
-        
+
         B = x.shape[0]
         ### Encoder
         ### Stage 1
@@ -445,47 +448,52 @@ class MK_UNet_S(nn.Module):
         ### Stage 4
         out = self.CA1(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder1(out),scale_factor=(2,2),mode ='bilinear')) 
+        out = F.relu(F.interpolate(self.decoder1(out),scale_factor=(2,2),mode ='bilinear'))
         t4 = self.AG1(g=out,x=t4)
         out = torch.add(out,t4)
 
         ### Stage 3
         out = self.CA2(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder2(out),scale_factor=(2,2),mode ='bilinear')) 
+        out = F.relu(F.interpolate(self.decoder2(out),scale_factor=(2,2),mode ='bilinear'))
         p1 = F.interpolate(self.out1(out),scale_factor=(8,8),mode ='bilinear')
         t3 = self.AG2(g=out,x=t3)
         out = torch.add(out,t3)
 
         out = self.CA3(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder3(out),scale_factor=(2,2),mode ='bilinear')) 
+        out = F.relu(F.interpolate(self.decoder3(out),scale_factor=(2,2),mode ='bilinear'))
         p2 = F.interpolate(self.out2(out),scale_factor=(4,4),mode ='bilinear')
         t2 = self.AG3(g=out,x=t2)
         out = torch.add(out,t2)
 
         out = self.CA4(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder4(out),scale_factor=(2,2),mode ='bilinear')) 
+        out = F.relu(F.interpolate(self.decoder4(out),scale_factor=(2,2),mode ='bilinear'))
         p3 = F.interpolate(self.out3(out),scale_factor=(2,2),mode ='bilinear')
         t1 = self.AG4(g=out,x=t1)
         out = torch.add(out,t1)
 
         out = self.CA5(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder5(out),scale_factor=(2,2),mode ='bilinear')) 
-       
+        out = F.relu(F.interpolate(self.decoder5(out),scale_factor=(2,2),mode ='bilinear'))
+
         p4 = self.out4(out)
 
         return [p4] #[p4, p3, p2, p1]
-        
+
 class MK_UNet(nn.Module):
 
-    def __init__(self,  num_classes=1, in_channels=3, channels=[16,32,64,96,160], depths=[1, 1, 1, 1, 1], kernel_sizes=[1,3,5], expansion_factor=2, gag_kernel=3, **kwargs):
+    def __init__(self,  num_classes=1, in_channels=3, channels=[16,32,64,96,160], depths=[1, 1, 1, 1, 1], kernel_sizes=[1,3,5], expansion_factor=2, gag_kernel=3, deep_supervision=False, ca_min_squeeze=1, **kwargs):
         super().__init__()
-        
+
+        # When False (default) forward() returns only the final head, exactly as the
+        # released code does. When True it also returns p3/p2/p1, which the forward
+        # pass already computes and would otherwise discard.
+        self.deep_supervision = deep_supervision
+
         self.encoder1 = mk_irb_bottleneck(in_channels, channels[0], depths[0], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
-        self.encoder2 = mk_irb_bottleneck(channels[0], channels[1], depths[1], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)  
+        self.encoder2 = mk_irb_bottleneck(channels[0], channels[1], depths[1], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.encoder3 = mk_irb_bottleneck(channels[1], channels[2], depths[2], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.encoder4 = mk_irb_bottleneck(channels[2], channels[3], depths[3], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.encoder5 = mk_irb_bottleneck(channels[3], channels[4], depths[4], 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
@@ -495,18 +503,18 @@ class MK_UNet(nn.Module):
         self.AG3 = GroupedAttentionGate(F_g=channels[1],F_l=channels[1],F_int=channels[1]//2, kernel_size=gag_kernel, groups=channels[1]//2)
         self.AG4 = GroupedAttentionGate(F_g=channels[0],F_l=channels[0],F_int=channels[0]//2, kernel_size=gag_kernel, groups=channels[0]//2)
 
-        self.decoder1 = mk_irb_bottleneck(channels[4], channels[3], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)  
+        self.decoder1 = mk_irb_bottleneck(channels[4], channels[3], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.decoder2 = mk_irb_bottleneck(channels[3], channels[2], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
-        self.decoder3 = mk_irb_bottleneck(channels[2], channels[1], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes) 
+        self.decoder3 = mk_irb_bottleneck(channels[2], channels[1], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.decoder4 = mk_irb_bottleneck(channels[1], channels[0], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
         self.decoder5 = mk_irb_bottleneck(channels[0], channels[0], 1, 1, expansion_factor=expansion_factor, dw_parallel=True, add=True, kernel_sizes=kernel_sizes)
-        
-        self.CA1 = ChannelAttention(channels[4], ratio=16)
-        self.CA2 = ChannelAttention(channels[3], ratio=16)
-        self.CA3 = ChannelAttention(channels[2], ratio=16)
-        self.CA4 = ChannelAttention(channels[1], ratio=8)
-        self.CA5 = ChannelAttention(channels[0], ratio=4)
-        
+
+        self.CA1 = ChannelAttention(channels[4], ratio=16, min_squeeze=ca_min_squeeze)
+        self.CA2 = ChannelAttention(channels[3], ratio=16, min_squeeze=ca_min_squeeze)
+        self.CA3 = ChannelAttention(channels[2], ratio=16, min_squeeze=ca_min_squeeze)
+        self.CA4 = ChannelAttention(channels[1], ratio=8, min_squeeze=ca_min_squeeze)
+        self.CA5 = ChannelAttention(channels[0], ratio=4, min_squeeze=ca_min_squeeze)
+
         self.SA = SpatialAttention()
 
         self.out1 = nn.Conv2d(channels[2], num_classes, kernel_size=1)
@@ -518,7 +526,7 @@ class MK_UNet(nn.Module):
 
         if x.shape[1]==1:
             x = x.repeat(1, 3, 1, 1)
-        
+
         B = x.shape[0]
         ### Encoder
         ### Stage 1
@@ -541,39 +549,41 @@ class MK_UNet(nn.Module):
         ### Stage 4
         out = self.CA1(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder1(out),scale_factor=(2,2),mode ='bilinear')) 
+        out = F.relu(F.interpolate(self.decoder1(out),scale_factor=(2,2),mode ='bilinear'))
         t4 = self.AG1(g=out,x=t4)
         out = torch.add(out,t4)
 
         ### Stage 3
         out = self.CA2(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder2(out),scale_factor=(2,2),mode ='bilinear')) 
+        out = F.relu(F.interpolate(self.decoder2(out),scale_factor=(2,2),mode ='bilinear'))
         p1 = F.interpolate(self.out1(out),scale_factor=(8,8),mode ='bilinear')
         t3 = self.AG2(g=out,x=t3)
         out = torch.add(out,t3)
 
         out = self.CA3(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder3(out),scale_factor=(2,2),mode ='bilinear')) 
+        out = F.relu(F.interpolate(self.decoder3(out),scale_factor=(2,2),mode ='bilinear'))
         p2 = F.interpolate(self.out2(out),scale_factor=(4,4),mode ='bilinear')
         t2 = self.AG3(g=out,x=t2)
         out = torch.add(out,t2)
 
         out = self.CA4(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder4(out),scale_factor=(2,2),mode ='bilinear')) 
+        out = F.relu(F.interpolate(self.decoder4(out),scale_factor=(2,2),mode ='bilinear'))
         p3 = F.interpolate(self.out3(out),scale_factor=(2,2),mode ='bilinear')
         t1 = self.AG4(g=out,x=t1)
         out = torch.add(out,t1)
 
         out = self.CA5(out)*out
         out = self.SA(out)*out
-        out = F.relu(F.interpolate(self.decoder5(out),scale_factor=(2,2),mode ='bilinear')) 
-       
+        out = F.relu(F.interpolate(self.decoder5(out),scale_factor=(2,2),mode ='bilinear'))
+
         p4 = self.out4(out)
 
+        # p1/p2/p3 are computed above regardless; returning them costs no extra compute.
+        if self.deep_supervision:
+            return [p4, p3, p2, p1]
         return [p4] #[p4, p3, p2, p1]
 
 #EOF
-
